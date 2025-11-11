@@ -1,31 +1,31 @@
-version: "3"
+version: "3.8"
 
 services:
   pact-broker-postgres:
-    image: postgres
-    healthcheck:
-      test: psql postgres --command "select 1" -U postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-volume:/var/lib/postgresql/data
+    image: postgres:14
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "PGPASSWORD=password psql -U postgres -d postgres -c 'SELECT 1;'"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   pact-broker:
     image: pactfoundation/pact-broker
-    build: .
+    depends_on:
+      pact-broker-postgres:
+        condition: service_healthy
     ports:
       - "9292:9292"
-    depends_on:
-      - pact-broker-postgres
     environment:
-      PACT_BROKER_DATABASE_USERNAME: postgres
-      PACT_BROKER_DATABASE_PASSWORD: password
-      PACT_BROKER_DATABASE_HOST: pact-broker-postgres
-      PACT_BROKER_DATABASE_NAME: postgres
+      PACT_BROKER_DATABASE_URL: "postgres://postgres:password@pact-broker-postgres:5432/postgres"
       PACT_BROKER_LOG_LEVEL: DEBUG
 volumes:
   postgres-volume:
